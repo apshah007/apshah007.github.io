@@ -1,0 +1,171 @@
+---
+title: "Text Mining Social Media Data"
+author: Amy Shah 
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(tidytext) # Text mining
+library(dplyr) # Data manipulation
+library(tidyr) # Spread, separate, unite, text mining
+library(ggplot2) #Visualization
+library(textdata)
+library(wordcloud)
+library(reshape2)
+
+
+
+```
+
+
+Making the dataset 
+
+```{r message=FALSE}
+#read social media message data into dataset 
+data <- read.csv("messages1.csv")
+#head(data)
+
+
+```
+
+
+```{r message=FALSE}
+
+#select column called CONTENT from social media dataset and make it into a unique dataset 
+select_column_content<- data %>% select(CONTENT)
+#select_column_content
+
+#use unnest_tokens() to put one word on each line 
+tidy_d<- select_column_content %>%
+  unnest_tokens(word, CONTENT )
+#tidy_d
+#column name "word" is an unnested column of all words
+
+
+```
+
+
+```{r message=FALSE}
+
+# Remove stop words
+without_stop_words <- tidy_d %>% anti_join(stop_words)
+
+
+```
+
+
+```{r message=FALSE}
+library(dplyr)
+# Use dplyr count() function to find the most common words in the books:
+
+numbered <- without_stop_words %>% count(word)
+
+
+
+```
+
+Making a frequency bar chart and word clouds 
+
+```{r message=FALSE} 
+
+# The word are now stored in a tidy data frame, which allows us to pipe this directly to the ggplot2, 
+# to create a visualization of the most common words for instance
+# This creates a bar chart of the top words appearing in the dataset 
+numbered %>% filter(n > 100) %>% ggplot(aes(reorder(word, n), n)) +
+ geom_bar(stat = "identity") + coord_flip()
+
+
+```
+
+```{r message=FALSE}
+
+numbered %>% filter(n > 200) %>% ggplot(aes(reorder(word, n), n)) +
+  geom_bar(stat = "identity") + coord_flip()
+
+
+```
+
+
+```{r message=FALSE}
+
+
+#Makes a word cloud of the top words appearing in the dataset 
+wordcloud(words = numbered$word, freq =numbered$n, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35)
+
+  
+
+```
+
+Using sentiment analysis
+
+
+
+```{r message=FALSE}
+# Sentiment Analysis
+
+nrc_joy <- get_sentiments("nrc") %>%
+  filter(sentiment == "joy")
+
+
+innerjtables <- merge(numbered, nrc_joy, by = "word")
+
+#innerjtables
+
+```
+
+
+
+```{r message=FALSE}
+
+
+innerjtables %>% filter(n > 50) %>% ggplot(aes(reorder(word, n), n)) +
+  geom_bar(stat = "identity") + coord_flip()
+
+```
+
+```{r message=FALSE}
+
+
+#word cloud of joy words
+wordcloud(words = innerjtables$word, freq = innerjtables$n, min.freq = 1,
+          max.words=250, random.order=FALSE, rot.per=0.35,)
+
+
+```
+
+
+```{r message=FALSE}
+
+
+#use bing lexicon to find the sentiments of words in the dataset 
+bingsent<-get_sentiments("bing")
+mergedtobing <- merge(bingsent, numbered, by = "word")
+#sentiment_breakdown<- count(mergedtobing$sentiment)
+
+
+#analyze_sentiment<- mergedtobing %>% 
+#  group_by(word) %>%
+#  spread(sentiment, freq, fill = 0) %>%
+#  mutate(sentimentchange = positive - negative)
+
+
+# Sentiment comparison word cloud
+#install.packages("reshape2")
+#library(reshape2)
+
+#working sentiment analysis word cloud 
+
+mergedtobing %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("red", "green4"),
+                   max.words = 100)
+
+
+```
+
